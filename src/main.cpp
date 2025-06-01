@@ -30,13 +30,47 @@ string find_in_path(const string& cmd) {
 }
 
 vector<string> split_args(const string& input) {
-    vector<string> args;
-    stringstream ss(input);
-    string arg;
-    while (ss >> arg) {
-        args.push_back(arg);
-    }
-    return args;
+  vector<string> args;
+  bool in_quote = false;
+  string current_arg;
+  
+  for (size_t i = 0; i < input.size(); i++) {
+      char c = input[i];
+      
+      if (c == '\'') {
+          if (in_quote) {
+
+              if (!current_arg.empty()) {
+                  args.push_back(current_arg);
+                  current_arg.clear();
+              }
+              in_quote = false;
+          } else {
+
+              if (!current_arg.empty()) {
+                  args.push_back(current_arg);
+                  current_arg.clear();
+              }
+              in_quote = true;
+          }
+      } else if (isspace(c) && !in_quote) {
+
+          if (!current_arg.empty()) {
+              args.push_back(current_arg);
+              current_arg.clear();
+          }
+      } else {
+
+          current_arg += c;
+      }
+  }
+  
+
+  if (!current_arg.empty()) {
+      args.push_back(current_arg);
+  }
+  
+  return args;
 }
 
 void handle_pwd() {
@@ -106,7 +140,12 @@ int main() {
         string cmd = args[0];
 
         if (cmd == "echo" && args.size() > 1) {
-            cout << input.substr(5) << endl;
+          // Find the position after "echo "
+          size_t echo_pos = input.find("echo ");
+          if (echo_pos != string::npos) {
+              string echo_arg = input.substr(echo_pos + 5);
+              cout << echo_arg << endl;
+          }
         } else if (cmd == "type" && args.size() > 1) {
             string target_cmd = args[1];
             if (is_builtin(target_cmd)) {
