@@ -33,29 +33,58 @@ string find_in_path(const string& cmd) {
 
 vector<string> split_args(const string& input) {
     vector<string> args;
-    bool in_quote = false;
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    bool escape_next = false;
     string current_arg;
     
     for (size_t i = 0; i < input.size(); i++) {
         char c = input[i];
         
-        if (c == '\'') {
-            if (in_quote) {
-                // Closing quote - add the accumulated argument
+        if (escape_next) {
+            current_arg += c;
+            escape_next = false;
+            continue;
+        }
+
+        if (c == '\\' && !in_single_quote) {
+            escape_next = true;
+            continue;
+        }
+
+        if (c == '\'' && !in_double_quote) {
+            if (in_single_quote) {
+                // Closing single quote
                 if (!current_arg.empty()) {
                     args.push_back(current_arg);
                     current_arg.clear();
                 }
-                in_quote = false;
+                in_single_quote = false;
             } else {
-                // Opening quote - save any previous argument
+                // Opening single quote
                 if (!current_arg.empty()) {
                     args.push_back(current_arg);
                     current_arg.clear();
                 }
-                in_quote = true;
+                in_single_quote = true;
             }
-        } else if (isspace(c) && !in_quote) {
+        } else if (c == '"' && !in_single_quote) {
+            if (in_double_quote) {
+                // Closing double quote
+                if (!current_arg.empty()) {
+                    args.push_back(current_arg);
+                    current_arg.clear();
+                }
+                in_double_quote = false;
+            } else {
+                // Opening double quote
+                if (!current_arg.empty()) {
+                    args.push_back(current_arg);
+                    current_arg.clear();
+                }
+                in_double_quote = true;
+            }
+        } else if (isspace(c) && !in_single_quote && !in_double_quote) {
             // Space outside quotes - finish current argument
             if (!current_arg.empty()) {
                 args.push_back(current_arg);
@@ -123,8 +152,13 @@ void handle_cd(const vector<string>& args) {
 }
 
 string strip_quotes(const string& input) {
-    if (input.size() >= 2 && input.front() == '\'' && input.back() == '\'') {
-        return input.substr(1, input.size() - 2);
+    if (input.size() >= 2) {
+        if (input.front() == '\'' && input.back() == '\'') {
+            return input.substr(1, input.size() - 2);
+        }
+        if (input.front() == '"' && input.back() == '"') {
+            return input.substr(1, input.size() - 2);
+        }
     }
     return input;
 }
@@ -153,9 +187,24 @@ int main() {
                 size_t echo_pos = input.find("echo ");
                 if (echo_pos != string::npos) {
                     string echo_arg = input.substr(echo_pos + 5);
-                    // Strip only the outer quotes if they exist
-                    echo_arg = strip_quotes(echo_arg);
-                    cout << echo_arg << endl;
+                    // Handle both single and double quotes
+                    bool in_quotes = false;
+                    char quote_char = '\0';
+                    string processed;
+                    
+                    for (size_t i = 0; i < echo_arg.size(); i++) {
+                        char c = echo_arg[i];
+                        
+                        if (!in_quotes && (c == '\'' || c == '"')) {
+                            in_quotes = true;
+                            quote_char = c;
+                        } else if (in_quotes && c == quote_char) {
+                            in_quotes = false;
+                        } else {
+                            processed += c;
+                        }
+                    }
+                    cout << processed << endl;
                 }
             } else {
                 cout << endl;  // echo without arguments prints newline
